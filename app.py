@@ -4,8 +4,8 @@ import os
 
 app = Flask(__name__)
 
-# Store your PUBG API key in an environment variable on Render
-API_KEY = os.environ.get("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIwNjljYjk4MC03YTk2LTAxM2UtNTcyNi0zMjY4NzNhNDM3NzAiLCJpc3MiOiJnYW1lbG9ja2VyIiwiaWF0IjoxNzU4NjIzMzMzLCJwdWIiOiJibHVlaG9sZSIsInRpdGxlIjoicHViZyIsImFwcCI6Ii1jMDc4MzdkZS1jNDQ1LTQ0MzgtYTUyZi00Y2M4NTFmZjMwZjcifQ.0uttT5BKUMN609k9jLBA5hLSykKhtIrD7SQodAHOw1A")
+import os
+API_KEY = os.environ.get("PUBG_API_KEY")
 
 @app.route("/check-ban")
 def check_ban():
