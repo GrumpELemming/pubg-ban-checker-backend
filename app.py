@@ -4,12 +4,13 @@ import os
 
 app = Flask(__name__)
 
-import os
+# Get API key from environment variable
 API_KEY = os.environ.get("PUBG_API_KEY")
 
 @app.route("/check-ban")
 def check_ban():
-    player = request.args.get("player")
+    # Safely get player name and strip spaces
+    player = request.args.get("player", "").strip()
     platform = request.args.get("platform", "steam")
 
     if not player:
