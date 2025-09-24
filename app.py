@@ -1,13 +1,16 @@
 from flask import Flask, request, jsonify
 import requests
 import os
-from flask_cors import CORS  # already imported
+from flask_cors import CORS
+from difflib import get_close_matches
 
 app = Flask(__name__)
-CORS(app)  # enable CORS for all routes
+CORS(app)  # Enable CORS for frontend
 
-# Get API key from environment variable
 API_KEY = os.environ.get("PUBG_API_KEY")
+
+# Store recently searched players for suggestions
+recent_players = []
 
 @app.route("/check-ban")
 def check_ban():
@@ -16,6 +19,11 @@ def check_ban():
 
     if not player:
         return jsonify({"error": "Missing player parameter"}), 400
+
+    if player not in recent_players:
+        recent_players.append(player)
+        if len(recent_players) > 100:  # Limit memory
+            recent_players.pop(0)
 
     url = f"https://api.pubg.com/shards/{platform}/players"
     headers = {
@@ -42,6 +50,16 @@ def check_ban():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/suggest-players")
+def suggest_players():
+    query = request.args.get("q", "").lower().strip()
+    if not query:
+        return jsonify([])
+
+    # Return fuzzy-matched player names from recent_players
+    suggestions = get_close_matches(query, recent_players, n=10, cutoff=0.4)
+    return jsonify(suggestions)
 
 @app.route("/ping")
 def ping():
