@@ -1,17 +1,16 @@
 from flask import Flask, request, jsonify
 import requests
 import os
-from flask_cors import CORS  # Import CORS
+from flask_cors import CORS  # already imported
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)  # enable CORS for all routes
 
 # Get API key from environment variable
 API_KEY = os.environ.get("PUBG_API_KEY")
 
 @app.route("/check-ban")
 def check_ban():
-    # Safely get player name and strip spaces
     player = request.args.get("player", "").strip()
     platform = request.args.get("platform", "steam")
 
