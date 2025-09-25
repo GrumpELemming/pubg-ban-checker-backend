@@ -16,9 +16,10 @@ def check_ban():
     if not players_param:
         return jsonify({"error": "Missing player parameter"}), 400
 
-    # Split by comma and strip spaces
+    # Split and clean names
     players = [p.strip() for p in players_param.split(",") if p.strip()]
-    results = []
+    if not players:
+        return jsonify({"error": "No valid player names provided"}), 400
 
     url = f"https://api.pubg.com/shards/{platform}/players"
     headers = {
@@ -26,30 +27,42 @@ def check_ban():
         "Accept": "application/vnd.api+json"
     }
 
-    for player in players:
-        try:
-            resp = requests.get(url, headers=headers, params={"filter[playerNames]": player}, timeout=10)
-            if resp.status_code != 200:
-                results.append({"player": player, "banStatus": f"PUBG API returned {resp.status_code}"})
+    try:
+        # Send all player names in a single request
+        resp = requests.get(
+            url,
+            headers=headers,
+            params={"filter[playerNames]": ",".join(players)},
+            timeout=10
+        )
+
+        if resp.status_code == 429:
+            return jsonify({"error": "Rate limit exceeded. Try fewer players or wait a bit."}), 429
+        elif resp.status_code != 200:
+            return jsonify({"error": f"PUBG API returned {resp.status_code}"}), resp.status_code
+
+        data = resp.json().get("data", [])
+        results = []
+
+        # Map PUBG response to your format
+        for player_name in players:
+            player_data = next((p for p in data if p["attributes"]["name"].lower() == player_name.lower()), None)
+            if not player_data:
+                results.append({"player": player_name, "banStatus": "Player not found"})
                 continue
 
-            data = resp.json().get("data", [])
-            if not data:
-                results.append({"player": player, "banStatus": "Player not found"})
-                continue
-
-            ban_type = data[0]["attributes"].get("banType", "Unknown")
+            ban_type = player_data["attributes"].get("banType", "Unknown")
             mapping = {
                 "Innocent": "Not banned",
                 "TemporaryBan": "Temporarily banned",
                 "PermanentBan": "Permanently banned",
             }
-            results.append({"player": player, "banStatus": mapping.get(ban_type, ban_type)})
+            results.append({"player": player_name, "banStatus": mapping.get(ban_type, ban_type)})
 
-        except Exception as e:
-            results.append({"player": player, "banStatus": f"Error: {str(e)}"})
+        return jsonify({"results": results})
 
-    return jsonify({"results": results})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/ping")
 def ping():
