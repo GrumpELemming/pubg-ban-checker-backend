@@ -56,9 +56,9 @@ def check_ban():
             player_id = player_entry["id"]
             print(f"➡️ Found {player_name} with ID {player_id}")
 
-            # Step 2: Get detailed player info (this time include clan)
-            detail_url = f"{base_url}/players/{player_id}?include=clan"
-            print(f"   🔍 Fetching details for {player_name} ({player_id}) with clan include")
+            # Step 2: Get detailed player info (no include, safe)
+            detail_url = f"{base_url}/players/{player_id}"
+            print(f"   🔍 Fetching details for {player_name} ({player_id})")
             detail_resp = requests.get(detail_url, headers=PUBG_HEADERS, timeout=10)
             if detail_resp.status_code != 200:
                 print(f"   ❌ Failed to fetch details for {player_name}: {detail_resp.status_code}")
