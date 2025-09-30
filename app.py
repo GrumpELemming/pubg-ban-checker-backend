@@ -41,9 +41,14 @@ def check_ban():
             return jsonify({"error": f"PUBG API returned {resp.status_code}"}), resp.status_code
 
         data = resp.json().get("data", [])
-        results = []
-        clan_cache = {}
 
+        # 🔍 DEBUG: Print full player JSON to logs
+        print("=== PUBG RAW RESPONSE ===")
+        import json
+        print(json.dumps(data, indent=2))
+        print("=========================")
+
+        results = []
         for player_name in players:
             player_data = next((p for p in data if p["attributes"]["name"].lower() == player_name.lower()), None)
             if not player_data:
@@ -58,30 +63,8 @@ def check_ban():
                 "PermanentBan": "Permanently banned",
             }
 
-            # Default: no clan
-            clan_name = None
-
-            # Look for clan relationship
-            rel = player_data.get("relationships", {}).get("clan", {}).get("data")
-            if rel and isinstance(rel, dict):
-                clan_id = rel.get("id")
-                if clan_id:
-                    # Check cache first
-                    if clan_id in clan_cache:
-                        clan_name = clan_cache[clan_id]
-                    else:
-                        # Fetch clan details
-                        clan_url = f"https://api.pubg.com/shards/{platform}/clans/{clan_id}"
-                        clan_resp = requests.get(clan_url, headers=PUBG_HEADERS, timeout=10)
-                        if clan_resp.status_code == 200:
-                            clan_data = clan_resp.json().get("data", {})
-                            clan_attrs = clan_data.get("attributes", {})
-                            clan_name = clan_attrs.get("clanTag") or clan_attrs.get("clanName")
-                            clan_cache[clan_id] = clan_name
-
             results.append({
                 "player": player_name,
-                "clan": clan_name,
                 "banStatus": mapping.get(ban_type, ban_type)
             })
 
