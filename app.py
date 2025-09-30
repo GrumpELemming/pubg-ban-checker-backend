@@ -56,9 +56,9 @@ def check_ban():
             player_id = player_entry["id"]
             print(f"➡️ Found {player_name} with ID {player_id}")
 
-            # Step 2: Get detailed player info (this is where clan relationship appears)
-            detail_url = f"{base_url}/players/{player_id}"
-            print(f"   🔍 Fetching details for {player_name} ({player_id})")
+            # Step 2: Get detailed player info (this time include clan)
+            detail_url = f"{base_url}/players/{player_id}?include=clan"
+            print(f"   🔍 Fetching details for {player_name} ({player_id}) with clan include")
             detail_resp = requests.get(detail_url, headers=PUBG_HEADERS, timeout=10)
             if detail_resp.status_code != 200:
                 print(f"   ❌ Failed to fetch details for {player_name}: {detail_resp.status_code}")
@@ -108,9 +108,11 @@ def check_ban():
         print(f"❌ Exception: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/ping")
 def ping():
     return jsonify({"status": "ok"})
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
