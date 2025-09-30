@@ -14,7 +14,7 @@ PUBG_HEADERS = {
 }
 
 # ======================================================
-# Route 1: Ban-only checker (live site uses this)
+# Route 1: Ban-only checker (optimized for 10 names)
 # ======================================================
 @app.route("/check-ban")
 def check_ban():
@@ -32,6 +32,7 @@ def check_ban():
     results = []
 
     try:
+        # ✅ Single batch request
         resp = requests.get(
             f"{base_url}/players",
             headers=PUBG_HEADERS,
@@ -46,23 +47,16 @@ def check_ban():
 
         player_list = resp.json().get("data", [])
 
+        # Map by lowercase name for easy lookup
+        player_map = {p["attributes"]["name"].lower(): p for p in player_list}
+
         for player_name in players:
-            player_entry = next((p for p in player_list if p["attributes"]["name"].lower() == player_name.lower()), None)
-            if not player_entry:
+            entry = player_map.get(player_name.lower())
+            if not entry:
                 results.append({"player": player_name, "banStatus": "Player not found"})
                 continue
 
-            player_id = player_entry["id"]
-
-            detail_url = f"{base_url}/players/{player_id}"
-            detail_resp = requests.get(detail_url, headers=PUBG_HEADERS, timeout=10)
-            if detail_resp.status_code != 200:
-                results.append({"player": player_name, "banStatus": "Error fetching details"})
-                continue
-
-            detail_data = detail_resp.json().get("data", {})
-            attrs = detail_data.get("attributes", {})
-            ban_type = attrs.get("banType", "Unknown")
+            ban_type = entry["attributes"].get("banType", "Unknown")
             mapping = {
                 "Innocent": "Not banned",
                 "TemporaryBan": "Temporarily banned",
@@ -81,7 +75,7 @@ def check_ban():
 
 
 # ======================================================
-# Route 2: Ban + Clan checker (temporary/experimental)
+# Route 2: Ban + Clan checker (experimental, heavier)
 # ======================================================
 @app.route("/check-ban-clan")
 def check_ban_clan():
@@ -122,6 +116,7 @@ def check_ban_clan():
 
             player_id = player_entry["id"]
 
+            # ✅ Still fetch detail per player for clanId
             detail_url = f"{base_url}/players/{player_id}"
             detail_resp = requests.get(detail_url, headers=PUBG_HEADERS, timeout=10)
             if detail_resp.status_code != 200:
@@ -163,7 +158,9 @@ def check_ban_clan():
         return jsonify({"error": str(e)}), 500
 
 
+# ======================================================
 # Health check
+# ======================================================
 @app.route("/ping")
 def ping():
     return jsonify({"status": "ok"})
