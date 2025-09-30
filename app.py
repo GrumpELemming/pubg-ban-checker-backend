@@ -51,13 +51,19 @@ def check_ban():
                 results.append({"player": player_name, "banStatus": "Player not found"})
                 continue
 
-            ban_type = player_data["attributes"].get("banType", "Unknown")
+            attrs = player_data["attributes"]
+            ban_type = attrs.get("banType", "Unknown")
             mapping = {
                 "Innocent": "Not banned",
                 "TemporaryBan": "Temporarily banned",
                 "PermanentBan": "Permanently banned",
             }
-            results.append({"player": player_name, "banStatus": mapping.get(ban_type, ban_type)})
+
+            results.append({
+                "player": player_name,
+                "clan": attrs.get("clanName") or attrs.get("clanTag"),  # ✅ Include clan name/tag
+                "banStatus": mapping.get(ban_type, ban_type)
+            })
 
         return jsonify({"results": results})
 
