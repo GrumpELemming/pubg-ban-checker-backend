@@ -31,6 +31,7 @@ def check_ban():
 
     try:
         # Step 1: Lookup all players by name
+        print(f"🔍 Fetching player list for: {players}")
         resp = requests.get(
             f"{base_url}/players",
             headers=PUBG_HEADERS,
@@ -48,14 +49,19 @@ def check_ban():
         for player_name in players:
             player_entry = next((p for p in player_list if p["attributes"]["name"].lower() == player_name.lower()), None)
             if not player_entry:
+                print(f"⚠️ Player not found: {player_name}")
                 results.append({"player": player_name, "banStatus": "Player not found", "clan": None})
                 continue
 
             player_id = player_entry["id"]
+            print(f"➡️ Found {player_name} with ID {player_id}")
 
             # Step 2: Get detailed player info
-            detail_resp = requests.get(f"{base_url}/players/{player_id}", headers=PUBG_HEADERS, timeout=10)
+            detail_url = f"{base_url}/players/{player_id}"
+            print(f"   🔍 Fetching details for {player_name} ({player_id})")
+            detail_resp = requests.get(detail_url, headers=PUBG_HEADERS, timeout=10)
             if detail_resp.status_code != 200:
+                print(f"   ❌ Failed to fetch details for {player_name}: {detail_resp.status_code}")
                 results.append({"player": player_name, "banStatus": "Error fetching details", "clan": None})
                 continue
 
@@ -76,13 +82,19 @@ def check_ban():
                 if clan_id:
                     if clan_id in clan_cache:
                         clan_name = clan_cache[clan_id]
+                        print(f"   ✅ Using cached clan for {player_name}: {clan_name}")
                     else:
-                        clan_resp = requests.get(f"{base_url}/clans/{clan_id}", headers=PUBG_HEADERS, timeout=10)
+                        clan_url = f"{base_url}/clans/{clan_id}"
+                        print(f"   🔍 Fetching clan info for {player_name}: {clan_id}")
+                        clan_resp = requests.get(clan_url, headers=PUBG_HEADERS, timeout=10)
                         if clan_resp.status_code == 200:
                             clan_data = clan_resp.json().get("data", {})
                             clan_attrs = clan_data.get("attributes", {})
                             clan_name = clan_attrs.get("clanTag") or clan_attrs.get("clanName")
                             clan_cache[clan_id] = clan_name
+                            print(f"   ✅ Clan resolved for {player_name}: {clan_name}")
+                        else:
+                            print(f"   ❌ Failed to fetch clan {clan_id}: {clan_resp.status_code}")
 
             results.append({
                 "player": player_name,
@@ -93,6 +105,7 @@ def check_ban():
         return jsonify({"results": results})
 
     except Exception as e:
+        print(f"❌ Exception: {e}")
         return jsonify({"error": str(e)}), 500
 
 
