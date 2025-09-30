@@ -51,7 +51,7 @@ def check_ban():
                 results.append({"player": player_name, "banStatus": "Player not found"})
                 continue
 
-            attrs = player_data["attributes"]
+            attrs = player_data.get("attributes", {})
             ban_type = attrs.get("banType", "Unknown")
             mapping = {
                 "Innocent": "Not banned",
@@ -59,9 +59,18 @@ def check_ban():
                 "PermanentBan": "Permanently banned",
             }
 
+            # Try clan from attributes first
+            clan = attrs.get("clanName") or attrs.get("clanTag")
+
+            # Fallback: check relationships
+            if not clan:
+                rel = player_data.get("relationships", {}).get("clan", {}).get("data")
+                if rel and isinstance(rel, dict):
+                    clan = rel.get("id")  # Might just be the clan ID
+
             results.append({
                 "player": player_name,
-                "clan": attrs.get("clanName") or attrs.get("clanTag"),  # ✅ Include clan name/tag
+                "clan": clan,
                 "banStatus": mapping.get(ban_type, ban_type)
             })
 
