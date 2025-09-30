@@ -4,9 +4,14 @@ import os
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # Allow cross-origin requests
+CORS(app)
 
 API_KEY = os.environ.get("PUBG_API_KEY")
+
+PUBG_HEADERS = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Accept": "application/vnd.api+json"
+}
 
 @app.route("/check-ban")
 def check_ban():
@@ -16,22 +21,16 @@ def check_ban():
     if not players_param:
         return jsonify({"error": "Missing player parameter"}), 400
 
-    # Split and clean names
     players = [p.strip() for p in players_param.split(",") if p.strip()]
     if not players:
         return jsonify({"error": "No valid player names provided"}), 400
 
     url = f"https://api.pubg.com/shards/{platform}/players"
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Accept": "application/vnd.api+json"
-    }
 
     try:
-        # Send all player names in a single request
         resp = requests.get(
             url,
-            headers=headers,
+            headers=PUBG_HEADERS,
             params={"filter[playerNames]": ",".join(players)},
             timeout=10
         )
@@ -43,8 +42,8 @@ def check_ban():
 
         data = resp.json().get("data", [])
         results = []
+        clan_cache = {}
 
-        # Map PUBG response to your format
         for player_name in players:
             player_data = next((p for p in data if p["attributes"]["name"].lower() == player_name.lower()), None)
             if not player_data:
@@ -59,18 +58,30 @@ def check_ban():
                 "PermanentBan": "Permanently banned",
             }
 
-            # Try clan from attributes first
-            clan = attrs.get("clanName") or attrs.get("clanTag")
+            # Default: no clan
+            clan_name = None
 
-            # Fallback: check relationships
-            if not clan:
-                rel = player_data.get("relationships", {}).get("clan", {}).get("data")
-                if rel and isinstance(rel, dict):
-                    clan = rel.get("id")  # Might just be the clan ID
+            # Look for clan relationship
+            rel = player_data.get("relationships", {}).get("clan", {}).get("data")
+            if rel and isinstance(rel, dict):
+                clan_id = rel.get("id")
+                if clan_id:
+                    # Check cache first
+                    if clan_id in clan_cache:
+                        clan_name = clan_cache[clan_id]
+                    else:
+                        # Fetch clan details
+                        clan_url = f"https://api.pubg.com/shards/{platform}/clans/{clan_id}"
+                        clan_resp = requests.get(clan_url, headers=PUBG_HEADERS, timeout=10)
+                        if clan_resp.status_code == 200:
+                            clan_data = clan_resp.json().get("data", {})
+                            clan_attrs = clan_data.get("attributes", {})
+                            clan_name = clan_attrs.get("clanTag") or clan_attrs.get("clanName")
+                            clan_cache[clan_id] = clan_name
 
             results.append({
                 "player": player_name,
-                "clan": clan,
+                "clan": clan_name,
                 "banStatus": mapping.get(ban_type, ban_type)
             })
 
