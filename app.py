@@ -30,7 +30,7 @@ def check_ban():
     clan_cache = {}
 
     try:
-        # Step 1: Lookup all players by name
+        # Step 1: Lookup all players by name (to get IDs)
         print(f"🔍 Fetching player list for: {players}")
         resp = requests.get(
             f"{base_url}/players",
@@ -56,7 +56,7 @@ def check_ban():
             player_id = player_entry["id"]
             print(f"➡️ Found {player_name} with ID {player_id}")
 
-            # Step 2: Get detailed player info
+            # Step 2: Get detailed player info (this is where clan relationship appears)
             detail_url = f"{base_url}/players/{player_id}"
             print(f"   🔍 Fetching details for {player_name} ({player_id})")
             detail_resp = requests.get(detail_url, headers=PUBG_HEADERS, timeout=10)
@@ -98,7 +98,7 @@ def check_ban():
 
             results.append({
                 "player": player_name,
-                "clan": clan_name,
+                "clan": clan_name,  # null if none
                 "banStatus": mapping.get(ban_type, ban_type)
             })
 
@@ -108,11 +108,9 @@ def check_ban():
         print(f"❌ Exception: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/ping")
 def ping():
     return jsonify({"status": "ok"})
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
