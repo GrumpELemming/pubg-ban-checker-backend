@@ -9,15 +9,20 @@ CORS(app)
 # ======================================================
 # PUBG API setup
 # ======================================================
-API_KEY = os.environ.get("PUBG_API_KEY") or "PUT-YOUR-API-KEY-HERE"
-
+API_KEY = os.environ.get("PUBG_API_KEY") or "CHANGE_ME"
 PUBG_HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Accept": "application/vnd.api+json"
 }
 
 # ======================================================
-# Route 1: Ban-only checker (optimized for 10 names)
+# Secret key for hidden tools (set as ENV var!)
+# ======================================================
+SECRET_KEY = os.environ.get("RESOLVER_SECRET_KEY", "disabled")
+
+
+# ======================================================
+# Ban-only checker
 # ======================================================
 @app.route("/check-ban")
 def check_ban():
@@ -75,7 +80,7 @@ def check_ban():
 
 
 # ======================================================
-# Route 2: Ban + Clan checker (experimental, heavier)
+# Ban + Clan checker
 # ======================================================
 @app.route("/check-ban-clan")
 def check_ban_clan():
@@ -166,11 +171,15 @@ def ping():
 
 
 # ======================================================
-# Secret Resolver (hidden page + endpoints)
+# Secret Resolver (protected page + APIs)
 # ======================================================
 @app.route("/resolver-secret")
 def resolver_page():
-    return """
+    key = request.args.get("key", "")
+    if key != SECRET_KEY:
+        return "Forbidden", 403
+
+    return f"""
     <!DOCTYPE html>
     <html>
     <head><title>PUBG Secret Resolver</title></head>
@@ -192,26 +201,32 @@ def resolver_page():
         </div>
 
         <script>
-        async function resolveName() {
+        async function resolveName() {{
           const n = document.getElementById("name").value;
-          const res = await fetch('/api/resolve-by-name?name='+encodeURIComponent(n));
+          const res = await fetch('/api/resolve-by-name?key={SECRET_KEY}&name='+encodeURIComponent(n));
           document.getElementById("outName").textContent = JSON.stringify(await res.json(), null, 2);
-        }
-        async function resolveId() {
+        }}
+        async function resolveId() {{
           const i = document.getElementById("accid").value;
-          const res = await fetch('/api/resolve-by-id?id='+encodeURIComponent(i));
+          const res = await fetch('/api/resolve-by-id?key={SECRET_KEY}&id='+encodeURIComponent(i));
           document.getElementById("outId").textContent = JSON.stringify(await res.json(), null, 2);
-        }
+        }}
         </script>
     </body>
     </html>
     """
 
+
 @app.route("/api/resolve-by-name")
 def api_resolve_name():
+    key = request.args.get("key", "")
+    if key != SECRET_KEY:
+        return jsonify({"error": "Forbidden"}), 403
+
     player_name = request.args.get("name", "").strip()
     if not player_name:
         return jsonify({"error": "Missing name"}), 400
+
     r = requests.get(
         "https://api.pubg.com/shards/steam/players",
         headers=PUBG_HEADERS,
@@ -226,11 +241,17 @@ def api_resolve_name():
     player = data[0]
     return jsonify({"accountId": player["id"], "currentName": player["attributes"]["name"]})
 
+
 @app.route("/api/resolve-by-id")
 def api_resolve_id():
+    key = request.args.get("key", "")
+    if key != SECRET_KEY:
+        return jsonify({"error": "Forbidden"}), 403
+
     accid = request.args.get("id", "").strip()
     if not accid:
         return jsonify({"error": "Missing id"}), 400
+
     r = requests.get(
         f"https://api.pubg.com/shards/steam/players/{accid}",
         headers=PUBG_HEADERS,
@@ -245,7 +266,7 @@ def api_resolve_id():
 
 
 # ======================================================
-# Main entry point
+# Main entry
 # ======================================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
